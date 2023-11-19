@@ -1,0 +1,156 @@
+# CPU Configuration File
+# Version: 0.1.0
+#
+# This file defines the hardware configuration for a custom CPU. It specifies the registers,
+# instructions, and CPU flags that are supported by the CPU. This file is read by the hardware
+# design tools to generate the CPU design.
+#
+# The format of the file is a set of key-value pairs separated by colons. Each section of the
+# file is separated by blank lines. See the comments below for details on the format of each
+# section.
+
+# This is a comment
+
+# Something to know about this configuration format is that it has *very* strict
+# rules to enforce readability, since the entire purpose of this project is to
+# increase accessibility and lower the skill floor to more complex types of
+# development.
+
+
+[[ REGISTERS ]]
+
+# CPU Registers:
+#
+# This section defines the registers used by the CPU. Each register is defined as a key-value
+# pair where the key is the register name and the value is the bit width of the register.
+#
+# The format of each register is:
+#
+#   <REGISTER_NAME> : <BIT_WIDTH>
+
+CPU_AH      :   008
+CPU_AL      :   008
+CPU_BH      :   008
+CPU_BL      :   008
+CPU_CH      :   008
+CPU_CL      :   008
+CPU_DH      :   008
+CPU_DL      :   008
+
+ALU_AH      :   008
+ALU_AL      :   008
+ALU_BH      :   008
+ALU_BL      :   008
+
+# CPU flags
+
+F_OF        :   001     # overflow flag
+F_CA        :   001     # carry flag
+F_ZE        :   001     # zero flag
+F_PA        :   001     # parity flag
+
+# sometimes a register may consist of multiple smaller registers together,
+# and that looks like this:
+CPU_AX      :   016
+->  CPU_AH  :   0
+->  APU_AL  :   1
+
+# it is important that the defined bit width of a register is zero-padded to
+# three digits. Else it will throw an error. The number following a sub-register
+# denotes the order that the registers occur in, from most significant to least
+# significant, 0 being the most significant. Sub-registers must be defined already
+# and the sum of the sizes of each sub-register must total to the defined size of
+# the register currently being described. 
+
+REG_BX      :   016
+->  REG_BH  :   0
+->  CPU_BL  :   1
+
+
+CPU_CX      :   016
+->  CPU_CH  :   0
+->  CPU_CL  :   1
+
+
+CPU_DX      :   016
+->  CPU_DH  :   0
+->  CPU_DL  :   1
+
+
+ALU_AX      :   016
+->  ALU_AH  :   0
+->  ALU_AL  :   1
+
+ALU_BX      :   016
+->  ALU_BH  :   0
+->  ALU_BL  :   1
+
+# There are some cases where you'd want a register with a larger size than the
+# sum of its sub-registers. In that case, RESERVED is a keyword that denotes the
+# number of reserved bits. This size still contributes to the sum of the
+# sub-registers when performing size validation.
+
+CPU_F           :   016
+->  F_OF        :   0     # overflow flag
+->  F_CA        :   1     # carry flag
+->  F_ZE        :   2     # zero flag
+->  F_PA        :   3     # parity flag
+--> RESERVED    :   012
+
+# Memory access address registers (2 16-bit registers each)
+MAR1H           : 16  # Memory Access Register 1 High
+MAR1L           : 16  # Memory Access Register 1 Low
+MAR2H           : 16  # Memory Access Register 2 High
+MAR2L           : 16  # Memory Access Register 2 Low
+MAR3H           : 16  # Memory Access Register 3 High
+MAR3L           : 16  # Memory Access Register 3 Low
+
+# Instruction Pointer (32-bit)
+IPH : 16   # Instruction Pointer High
+IPL : 16   # Instruction Pointer Low
+
+# Stack Pointer (32-bit)
+SPH : 16   # Stack Pointer High
+SPL : 16   # Stack Pointer Low
+
+
+# This is an instruction set architecture. All instructions defined between
+# an ISA denotation and the next one will belong to the former ISA.
+# Whitespace are disallowed in ISAs, leading and trailing whitespace will
+# be stripped. Throws exception.
+# Capital letters are disallowed in ISAs. Throws exception.
+
+# The bit-width must be 3 digits. If the character length of the width is less than
+# that, an error is thrown.
+
+[[ c-risc ]] : 016
+
+# This is an instruction type label. Similar to a comment, but used for
+# organizing instructions
+[simple instructions]
+
+# Instruction labels come in the format of
+# mnemonic : <binary op code> : <CPU state requirements>
+
+# The mnemonic is for generated assembly output. The inclusion of
+# mnemonics in the definition means that PCC can also compile assembly
+# for the target architecture.
+
+# Binary op codes require an underscore between each byte of the opcode,
+# to enforce readability.
+NOP     :   <00000000_00000000>
+
+# Note that NOP is a generic instruction that has no operands, so it has
+# no follow-up details that describe its functionality.
+
+[Basic maths operations]
+
+# INCI, however, does have a single operand that changes the state of the
+# processor. As such, PCC needs a way to know what to expect for those state
+# changes. You will see them described below
+
+# Increment an integer
+INCI        :   <00000001_000000AA>                             # "A" denotes an ALU register ID
+->  A       :   <ALU_AH/ALU_AL/ALU_AX/ALU_BH/ALU_BL/ALU_BX>     # a list of valid ALU registers
+->  F_OF    :   (A + 1) <= MAX_VALUE ? 0 : 1
+-->         :   A = A + 1                                       # an expression denoting the state change
